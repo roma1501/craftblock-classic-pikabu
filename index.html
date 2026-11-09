@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+    <script src="https://games.pikabu.ru/sdk/sdk.js"></script>
+    <script src="./pikabu-bridge.js"></script>
+    <script src="./playgama-yandex-shim.js"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Блочный мир: строй и добывай</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"><span></span><span></span></div>
+
+    <div id="hud-top">
+      <div id="score-badge" class="badge">
+        <span class="badge-icon">✦</span>
+        <span class="badge-label" data-i18n="hud.score">Points</span>
+        <span id="score-value" class="badge-value">0</span>
+      </div>
+      <div id="best-badge" class="badge badge-dim">
+        <span class="badge-icon">♛</span>
+        <span class="badge-label" data-i18n="hud.best">Best</span>
+        <span id="best-value" class="badge-value">0</span>
+      </div>
+      <div id="boost-badge" class="badge badge-boost hidden">
+        <span class="badge-icon">⭐</span>
+        <span class="badge-label" data-i18n="vid.boostActive">×2 bonus active</span>
+        <span id="boost-value" class="badge-value">0:00</span>
+      </div>
+    </div>
+
+    <div id="hud-topright">
+      <button id="btn-pause" class="icon-btn" data-i18n-aria="ctrl.pause" aria-label="Pause">❚❚</button>
+      <button id="btn-inv" class="icon-btn touch-only" data-i18n-aria="ctrl.inventory" aria-label="Inventory">▤</button>
+    </div>
+
+    <div id="hud-info">
+      <div id="info-biome"></div>
+      <div id="info-coords"></div>
+      <div id="info-fps" class="hidden"></div>
+    </div>
+
+    <div id="hud-bottom">
+      <div id="vitals">
+        <div id="armor-row" class="pip-row hidden" aria-label="Armor"></div>
+        <div id="health-row" class="pip-row" aria-label="HP"></div>
+        <div id="food-row" class="pip-row" aria-label="Food"></div>
+        <div id="air-row" class="pip-row hidden" aria-label="Air"></div>
+      </div>
+      <div id="hotbar"></div>
+      <div id="held-name" class="held-name"></div>
+    </div>
+  </div>
+
+  <!-- ================= Touch controls ================= -->
+  <div id="touch" class="hidden">
+    <div id="joystick"><div id="joystick-knob"></div></div>
+    <div id="touch-buttons">
+      <button class="tbtn tbtn-break" data-touch="break">⛏</button>
+      <button class="tbtn tbtn-place" data-touch="place">▣</button>
+      <button class="tbtn tbtn-jump" data-touch="jump">▲</button>
+      <button class="tbtn tbtn-sneak" data-touch="sneak">▼</button>
+    </div>
+  </div>
+
+  <!-- ================= Loading ================= -->
+  <section id="screen-loading" class="screen screen-solid">
+    <div class="logo">
+      <div class="logo-blocks" id="logo-blocks"></div>
+      <h1 class="logo-title" data-i18n="game.title">Блочный мир</h1>
+      <p class="logo-sub" data-i18n="game.subtitle">An endless world of blocks</p>
+    </div>
+    <div class="loader">
+      <div class="loader-track"><div class="loader-fill" id="loader-fill"></div></div>
+      <div class="loader-text" id="loader-text" data-i18n="loading.textures">Generating textures…</div>
+    </div>
+  </section>
+
+  <!-- ================= Main menu ================= -->
+  <section id="screen-menu" class="screen hidden">
+    <div class="menu-card">
+      <h1 class="logo-title small" data-i18n="game.title">Блочный мир</h1>
+      <div class="menu-buttons">
+        <button id="btn-continue" class="btn btn-primary hidden" data-i18n="menu.continue">Continue</button>
+        <button id="btn-play" class="btn btn-primary" data-i18n="menu.play">Play</button>
+        <button id="btn-new" class="btn" data-i18n="menu.newworld">New world</button>
+        <button id="btn-rewards" class="btn btn-gold" data-i18n="menu.rewards">Rewards</button>
+        <div class="btn-row">
+          <button id="btn-settings" class="btn btn-half" data-i18n="menu.settings">Settings</button>
+          <button id="btn-howto" class="btn btn-half" data-i18n="menu.howto">Controls</button>
+        </div>
+      </div>
+      <div class="menu-foot">
+        <span id="menu-best"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Pause ================= -->
+  <section id="screen-pause" class="screen hidden">
+    <div class="menu-card">
+      <h2 class="panel-title" data-i18n="menu.paused">Paused</h2>
+      <div class="menu-buttons">
+        <button id="btn-resume" class="btn btn-primary" data-i18n="menu.resume">Resume</button>
+        <button id="btn-pause-rewards" class="btn btn-gold" data-i18n="menu.rewards">Rewards</button>
+        <div class="btn-row">
+          <button id="btn-pause-settings" class="btn btn-half" data-i18n="menu.settings">Settings</button>
+          <button id="btn-pause-howto" class="btn btn-half" data-i18n="menu.howto">Controls</button>
+        </div>
+        <button id="btn-tomenu" class="btn btn-ghost" data-i18n="menu.tomenu">Main menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Settings ================= -->
+  <section id="screen-settings" class="screen hidden">
+    <div class="panel">
+      <h2 class="panel-title" data-i18n="set.title">Settings</h2>
+      <div class="panel-body" id="settings-body"></div>
+      <div class="panel-foot">
+        <button id="btn-settings-reset" class="btn btn-ghost btn-small" data-i18n="set.reset">Reset settings</button>
+        <button class="btn btn-primary btn-close" data-i18n="menu.back">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Controls help ================= -->
+  <section id="screen-controls" class="screen hidden">
+    <div class="panel">
+      <h2 class="panel-title" data-i18n="ctrl.title">Controls</h2>
+      <div class="panel-body" id="controls-body"></div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.back">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Rewards (rewarded video) ================= -->
+  <section id="screen-rewards" class="screen hidden">
+    <div class="panel">
+      <h2 class="panel-title" data-i18n="vid.rewardTitle">Ad rewards</h2>
+      <p class="panel-hint" data-i18n="vid.rewardHint">Watch a short video and claim your reward</p>
+      <div class="panel-body" id="rewards-body"></div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.back">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Inventory / crafting ================= -->
+  <section id="screen-inventory" class="screen hidden">
+    <div class="panel panel-wide">
+      <h2 class="panel-title" data-i18n="inv.title">Inventory</h2>
+      <div class="inv-layout">
+        <div class="inv-side">
+          <div class="inv-top">
+            <div>
+              <div class="armor-column" id="armor-slots"></div>
+              <div class="armor-total" id="armor-total"></div>
+            </div>
+            <div class="inv-grid" id="inv-grid"></div>
+          </div>
+        </div>
+        <div class="craft-side">
+          <div class="craft-head">
+            <span id="craft-mode" class="craft-mode" data-i18n="inv.craft2">Hand crafting</span>
+            <span class="craft-hint" data-i18n="inv.hint">Tap a recipe to craft it</span>
+          </div>
+          <div class="recipe-list" id="recipe-list"></div>
+        </div>
+      </div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.close">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Chest ================= -->
+  <section id="screen-chest" class="screen hidden">
+    <div class="panel panel-wide">
+      <h2 class="panel-title" data-i18n="chest.title">Chest</h2>
+      <div class="chest-grid" id="chest-grid"></div>
+      <div class="chest-sep" data-i18n="chest.yours">Your inventory</div>
+      <div class="inv-grid" id="chest-player"></div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.close">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Furnace ================= -->
+  <section id="screen-furnace" class="screen hidden">
+    <div class="panel">
+      <h2 class="panel-title" data-i18n="furnace.title">Furnace</h2>
+      <div class="furnace-layout">
+        <div class="furnace-col">
+          <div class="furnace-label" data-i18n="furnace.input">Input</div>
+          <div class="slot" id="furnace-input"></div>
+          <div class="furnace-flame"><div class="furnace-flame-fill" id="furnace-flame"></div></div>
+          <div class="furnace-label" data-i18n="furnace.fuel">Fuel</div>
+          <div class="slot" id="furnace-fuel"></div>
+        </div>
+        <div class="furnace-arrow">
+          <div class="furnace-progress"><div class="furnace-progress-fill" id="furnace-progress"></div></div>
+        </div>
+        <div class="furnace-col">
+          <div class="furnace-label" data-i18n="furnace.output">Result</div>
+          <div class="slot slot-out" id="furnace-output"></div>
+        </div>
+      </div>
+      <div class="chest-sep" data-i18n="chest.yours">Your inventory</div>
+      <div class="inv-grid" id="furnace-player"></div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.close">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Boss health bar ================= -->
+  <div id="boss-bar" class="hidden">
+    <div class="boss-name" id="boss-name" data-i18n="boss.name">Tung Tung Sahur</div>
+    <div class="boss-track"><div class="boss-fill" id="boss-fill"></div></div>
+    <div class="boss-phase hidden" id="boss-phase" data-i18n="boss.enraged">ENRAGED</div>
+  </div>
+
+  <!-- ================= Interact prompt ================= -->
+  <div id="interact-hint" class="hidden">
+    <span class="kbd" id="interact-key">F</span>
+    <span id="interact-label"></span>
+  </div>
+
+  <!-- ================= Creative inventory (1.2.5 style, paged) ================= -->
+  <section id="screen-creative" class="screen hidden">
+    <div class="panel panel-wide">
+      <h2 class="panel-title" data-i18n="creative.title">Creative inventory</h2>
+      <p class="panel-hint" data-i18n="creative.hint">Tap an item to put it in the selected slot</p>
+      <div class="creative-grid" id="creative-grid"></div>
+      <div class="creative-nav">
+        <button id="creative-prev" class="btn btn-small creative-arrow">◀</button>
+        <span id="creative-page" class="creative-page"></span>
+        <button id="creative-next" class="btn btn-small creative-arrow">▶</button>
+      </div>
+      <div class="creative-bar">
+        <span class="creative-bar-hint" data-i18n="creative.clearHint">Long-press a bottom slot to clear it</span>
+        <div class="creative-hotbar" id="creative-hotbar"></div>
+      </div>
+      <div class="panel-foot">
+        <button class="btn btn-primary btn-close" data-i18n="menu.close">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Death ================= -->
+  <section id="screen-death" class="screen hidden">
+    <div class="menu-card death-card">
+      <h2 class="panel-title death-title" data-i18n="death.title">You died</h2>
+      <p class="death-cause" id="death-cause"></p>
+      <div class="death-score">
+        <span data-i18n="death.score">Points earned</span>
+        <strong id="death-score-value">0</strong>
+      </div>
+      <div class="menu-buttons">
+        <button id="btn-death-bonus" class="btn btn-gold reward-inline">
+          <span data-i18n="vid.revive">📺 Watch ad: respawn and keep your items</span>
+        </button>
+        <button id="btn-respawn" class="btn btn-primary" data-i18n="death.respawn">Respawn</button>
+        <button id="btn-death-menu" class="btn btn-ghost" data-i18n="menu.tomenu">Main menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Video break overlay ================= -->
+  <div id="vid-overlay" class="hidden">
+    <div class="vid-overlay-inner">
+      <div class="vid-spinner"></div>
+      <div data-i18n="vid.overlay">Advertisement…</div>
+    </div>
+  </div>
+
+  <!-- ================= Confirm dialog ================= -->
+  <section id="screen-confirm" class="screen hidden">
+    <div class="menu-card confirm-card">
+      <p id="confirm-text" class="confirm-text"></p>
+      <div class="btn-row">
+        <button id="btn-confirm-yes" class="btn btn-half btn-primary" data-i18n="menu.yes">Yes</button>
+        <button id="btn-confirm-no" class="btn btn-half btn-ghost" data-i18n="menu.no">No</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toasts"></div>
+  <div id="vignette"></div>
+  <div id="damage-flash"></div>
+  <div id="water-overlay"></div>
+  <div id="tap-hint" class="hidden"><span data-i18n="ctrl.clickStart">Click to capture the mouse</span></div>
+</div>
+<script src="bundle.js"></script>
+</body>
+</html>
